@@ -61,7 +61,10 @@ class Solver:
         solution = self._find_initial_solution(normal_model)
         tableaux = self._tableux(normal_model, solution)
         #TODO: 
-        # - print normal model
+        print("--- Normalized model ---")
+        print(normal_model)
+        print("--- Initial Solution ---")
+        print()
         # - print initial solution
         # - print tableux
         return normal_model
@@ -205,14 +208,37 @@ class Solver:
             
             new_bi = []
             for i in range(len(self.extraVars)):
-                current_v = bi[i] - (constraintsValues[i][current_col_ind] * bi[current_row_ind]\
-                    / constraintsValues[current_row_ind][current_col_ind])
-                new_bi.append(current_v)
-
+                if i == current_row_ind:
+                    current_v = bi[i] / constraintsValues[current_row_ind][current_col_ind]
+                    new_bi.append(current_v)
+                else:
+                    current_v = bi[i] - (constraintsValues[i][current_col_ind] * bi[current_row_ind]\
+                        / constraintsValues[current_row_ind][current_col_ind])
+                    new_bi.append(current_v)
             ### Change to new ones
+            print("before -----------")
+            print(current_row_ind,current_col_ind)
+            print(self.extraVars[0])
+            print(self.extraVars[1])
+            print(self.extraVars[2])
+            print(bi)
+            print(constraintsValues[0])
+            print(constraintsValues[1])
+            print(constraintsValues[2])
             self.extraVars[current_row_ind] = swap_var
             constraintsValues = new_constr_values
             bi = new_bi
+            print("after-----------")
+            print(self.extraVars[0])
+            print(self.extraVars[1])
+            print(self.extraVars[2])
+            print(bi)
+            print(constraintsValues[0])
+            print(constraintsValues[1])
+            print(constraintsValues[2])
+
+    def _create_var_values_list(self, model, values):
+        
 
     def _tableux(self, model, solution):
         """
