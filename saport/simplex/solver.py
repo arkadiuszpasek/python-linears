@@ -1,29 +1,30 @@
-import numpy
 from copy import deepcopy
 from saport.simplex.expressions.objective import ObjectiveType
 from saport.simplex.expressions.constraint import ConstraintType
+
+
 class Solution:
     """
-        A class to represent a solution to linear programming problem.
+    A class to represent a solution to linear programming problem.
 
 
-        Attributes
-        ----------
-        model : Model
-            model corresponding to the solution
-        assignment : list[float]
-            list with the values assigned to the variables
-            order of values should correspond to the order of variables in model.variables list
+    Attributes
+    ----------
+    model : Model
+        model corresponding to the solution
+    assignment : list[float]
+        list with the values assigned to the variables
+        order of values should correspond to the order of variables in model.variables list
 
 
-        Methods
-        -------
-        __init__(model: Model, assignment: list[float]) -> Solution:
-            constructs a new solution for the specified model and assignment
-        value(var: Variable) -> float:
-            returns a value assigned to the specified variable
-        objective_value()
-            returns value of the objective function
+    Methods
+    -------
+    __init__(model: Model, assignment: list[float]) -> Solution:
+        constructs a new solution for the specified model and assignment
+    value(var: Variable) -> float:
+        returns a value assigned to the specified variable
+    objective_value()
+        returns value of the objective function
     """
 
     def __init__(self, model, assignment):
@@ -35,47 +36,49 @@ class Solution:
         return self.assignment[var.index]
 
     def objective_value(self):
-        return self.model.objective.evaluate(self.assignment)       
+        return self.model.objective.evaluate(self.assignment)
 
     def __str__(self):
-        text = f'- objective value: {self.objective_value()}\n'
-        text += '- assignment:\n'
-        for (i,var) in enumerate(self.assignment):
-            text += f'\t {self.model.variables[i].name} : {self.assignment[var]}'
+        text = f"- objective value: {self.objective_value()}\n"
+        text += "- assignment:\n"
+        for (i, var) in enumerate(self.assignment):
+            text += f"{self.model.variables[i].name}: {self.assignment[i]}, "
         return text
+
 
 class Solver:
     """
-        A class to represent a simplex solver.
+    A class to represent a simplex solver.
 
-        Methods
-        -------
-        solve(model: Model) -> Solution:
-            solves the given model and return the first solution
+    Methods
+    -------
+    solve(model: Model) -> Solution:
+        solves the given model and return the first solution
     """
+
     def __init__(self):
         self.extraVars = []
 
     def solve(self, model):
         normal_model = self._normalize_model(deepcopy(model))
-        solution = self._find_initial_solution(normal_model)
-        tableaux = self._tableux(normal_model, solution)
-        #TODO: 
         print("--- Normalized model ---")
         print(normal_model)
+
+        solution = self._find_initial_solution(normal_model)
         print("--- Initial Solution ---")
-        print()
-        # - print initial solution
+        print(solution)
+
+        tableaux = self._tableux(normal_model, solution)
+        # TODO:
         # - print tableux
-        return normal_model
-        # return solution
+        return solution
 
     def _normalize_model(self, model):
         """
-            _normalize_model(model: Model) -> Model:
-                returns a normalized version of the given model 
+        _normalize_model(model: Model) -> Model:
+            returns a normalized version of the given model
         """
-        #TODO: this method should create a new canonical model based on the current one
+        # TODO: this method should create a new canonical model based on the current one
         # - canonical model has only the MAX objective
         # - canonical model has only EQ constraints (thanks to the additional slack / surplus variables)
         #   you should add extra (slack, surplus) variables and store them somewhere as the solver attribute
@@ -83,7 +86,7 @@ class Solver:
             raise Exception("Not max")
         model.name = f"Normalized {model.name}"
         constraints = model.constraints
-        model.constraints = model.constraints[:len(model.variables)]
+        model.constraints = model.constraints[: len(model.variables)]
         for index, c in enumerate(constraints):
             if index < len(model.variables):
                 continue
@@ -102,7 +105,7 @@ class Solver:
         _find_initial_solution(model: Model) -> Solution
             returns an initial solution for the given model
         """
-        #TODO: this method should find an initial feasible solution to the model
+        # TODO: this method should find an initial feasible solution to the model
         # - should use the slack / surplus variables added during the normalization
 
         ### prepare arrays
@@ -118,7 +121,10 @@ class Solver:
                 cj.append(objective_atoms[i].factor)
 
         for i in range(len(model.constraints)):
-            if len(model.constraints[i].expression.atoms) == 1 and model.constraints[i].bound == 0:
+            if (
+                len(model.constraints[i].expression.atoms) == 1
+                and model.constraints[i].bound == 0
+            ):
                 continue
             else:
                 non_ge_zero_constraints.append(model.constraints[i])
@@ -137,11 +143,10 @@ class Solver:
                     constraintValues.append(maybe_value)
                     continue
 
-                if i >= len(atoms) -1:
+                if i >= len(atoms) - 1:
                     constraintValues.append(0)
                     continue
             constraintsValues.append(constraintValues)
-
 
         ### Keep looking for best solution
         while True:
@@ -155,29 +160,30 @@ class Solver:
 
             delta_z = []
             shouldFinish = True
+            print(cj)
             for i in range(len(cj)):
+                print(f" {cj[i] - zj[i]}  -- {model.variables[i].var.factor}")
                 delta_z.append(cj[i] - zj[i])
-                if cj[i] - zj[i] > 0:
+                if model.objective.expression.atoms[i].factor >= 0 and cj[i] - zj[i] > 0:
                     shouldFinish = False
+                elif model.objective.expression.atoms[i].factor < 0 and cj[i] - zj[i] < 0:
+                    shouldFinish = False
+
             if shouldFinish:
-                print("breaking")
-                print(self.extraVars[0])
-                print(self.extraVars[2])
-                print(self.extraVars[1])
-                print(bi)
-                print(constraintsValues[0])
-                print(constraintsValues[1])
-                print(constraintsValues[2])
-                break
+                self.constraintsValues = constraintsValues
+                return Solution(
+                    model, _create_var_values_list(model, self.extraVars, bi)
+                )
+
             current_col_ind = _find_max_index(delta_z)
             bi_calc = []
             for i in range(len(bi)):
                 try:
                     val = bi[i] / constraintsValues[i][current_col_ind]
                     if val > 0:
-                        bi_calc.append(val) 
+                        bi_calc.append(val)
                     else:
-                        bi_calc.append(9999999) ## TODO: Make type for ignored value
+                        bi_calc.append(9999999)  ## TODO: Make type for ignored value
                 except ZeroDivisionError:
                     bi_calc.append(99999999)
 
@@ -195,40 +201,43 @@ class Solver:
                 current_row = []
                 if i == current_row_ind:
                     for j in range(len(cj)):
-                        current_v = constraintsValues[i][j] / constraintsValues[current_row_ind][current_col_ind]
+                        current_v = (
+                            constraintsValues[i][j]
+                            / constraintsValues[current_row_ind][current_col_ind]
+                        )
                         current_row.append(current_v)
                 else:
                     for j in range(len(cj)):
-                        current_v = constraintsValues[i][j] - \
-                        ((constraintsValues[i][current_col_ind] * constraintsValues[current_row_ind][j]) \
-                        / constraintsValues[current_row_ind][current_col_ind])
-                        
+                        current_v = constraintsValues[i][j] - (
+                            (
+                                constraintsValues[i][current_col_ind]
+                                * constraintsValues[current_row_ind][j]
+                            )
+                            / constraintsValues[current_row_ind][current_col_ind]
+                        )
+
                         current_row.append(current_v)
                 new_constr_values.append(current_row)
-            
+
             new_bi = []
             for i in range(len(self.extraVars)):
                 if i == current_row_ind:
-                    current_v = bi[i] / constraintsValues[current_row_ind][current_col_ind]
+                    current_v = (
+                        bi[i] / constraintsValues[current_row_ind][current_col_ind]
+                    )
                     new_bi.append(current_v)
                 else:
-                    current_v = bi[i] - (constraintsValues[i][current_col_ind] * bi[current_row_ind]\
-                        / constraintsValues[current_row_ind][current_col_ind])
+                    current_v = bi[i] - (
+                        constraintsValues[i][current_col_ind]
+                        * bi[current_row_ind]
+                        / constraintsValues[current_row_ind][current_col_ind]
+                    )
                     new_bi.append(current_v)
             ### Change to new ones
-            print("before -----------")
-            print(current_row_ind,current_col_ind)
-            print(self.extraVars[0])
-            print(self.extraVars[1])
-            print(self.extraVars[2])
-            print(bi)
-            print(constraintsValues[0])
-            print(constraintsValues[1])
-            print(constraintsValues[2])
+
             self.extraVars[current_row_ind] = swap_var
             constraintsValues = new_constr_values
             bi = new_bi
-            print("after-----------")
             print(self.extraVars[0])
             print(self.extraVars[1])
             print(self.extraVars[2])
@@ -236,18 +245,29 @@ class Solver:
             print(constraintsValues[0])
             print(constraintsValues[1])
             print(constraintsValues[2])
-
-    def _create_var_values_list(self, model, values):
-        
 
     def _tableux(self, model, solution):
         """
         _tableux(model: Model, solution: Solution) -> list[list[float]]
             returns a tableux for the given model and solution
         """
-        #TODO: this method should create an array (list of lists is fine, but you can cahnge it) 
+        # TODO: this method should create an array (list of lists is fine, but you can cahnge it)
         # representing the tableux for the given model and solution
-        pass 
+        result = []
+
+        return result
+
+
+def _create_var_values_list(model, base_vars, values):
+    result = []
+    for i in range(len(model.variables)):
+        current_variable_val = 0
+        for j in range(len(base_vars)):
+            if model.variables[i].name == base_vars[j].name:
+                current_variable_val = values[j]
+        result.append(current_variable_val)
+    return result
+
 
 def _find_max_index(arr):
     best_val = arr[0]
@@ -257,6 +277,7 @@ def _find_max_index(arr):
             best_ind = i
             best_val = arr[i]
     return best_ind
+
 
 def _find_min_index(arr):
     best_val = arr[0]

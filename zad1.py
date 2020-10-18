@@ -1,11 +1,11 @@
-# Placeholder for the assignment, refer to the example.py for tips 
+# Placeholder for the assignment, refer to the example.py for tips
 # How to use SAPORT?
 
 # 1. Import the library
-from saport.simplex.model import Model 
+from saport.simplex.model import Model
 
 # 2. Create a model
-model = Model("example")
+model = Model("Zad1")
 
 # 3. Add variables
 x1 = model.create_variable("x1")
@@ -21,7 +21,7 @@ model.add_constraint(1.0 * x1 + 2.0 * x2 + 1.0 * x3 >= 10)
 model.add_constraint(0.0 * x1 + 2.0 * x2 + 1.0 * x3 <= 20)
 
 # 6. Set the objective!
-model.maximize(2.0* x1 + 1.0*x2 + 3.0*x3)
+model.minimize(2.0 * x1 + 1.0 * x2 + 3.0 * x3)
 
 # 7. You can print the model
 print("Before solving:")
@@ -37,8 +37,3 @@ print(model)
 # 10. Print solution (uncomment after finishing assignment)
 print("Solution: ")
 print(solution)
-
-
-
-
-
